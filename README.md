@@ -97,10 +97,8 @@ http://localhost:8080
 
 ## 🌐 GitHub Pages
 
-Upload the project →  
-**Repository → Settings → Pages → Deploy from main branch**
-
-Your website can then be available globally through GitHub Pages.
+🔗 **Live Website:**  
+https://mahir966.github.io/SSC-Countdown/
 
 ---
 
