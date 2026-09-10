@@ -8,7 +8,7 @@
 // ─── Constants ──────────────────────────────────────────────
 const EXAM_MONTH = 2; // February (1-indexed)
 const EXAM_DAY = 1;
-const ACADEMIC_JOURNEY_YEARS = 5;
+const ACADEMIC_JOURNEY_YEARS = 10;
 const BST_OFFSET_HOURS = 6;
 const BST_OFFSET_MS = BST_OFFSET_HOURS * 60 * 60 * 1000;
 
@@ -83,8 +83,8 @@ function getExamDate(batchYear) {
 }
 
 /**
- * Calculate academic progress percentage from Class 6 start to SSC exam date.
- * Total duration: 5 years (Jan 1 of [batchYear - 5] to Feb 1 of batchYear).
+ * Calculate academic progress percentage from Class 1 start to SSC exam date.
+ * Total duration: 10 years + 1 month (Jan 1 of [batchYear - 10] to Feb 1 of batchYear).
  * @param {number} batchYear
  * @param {Date|string|number} [currentDate]
  * @returns {number} Progress clamped to [0, 100] with 1 decimal place
@@ -141,7 +141,7 @@ function calculateStudentStatus(batchYear, currentDate) {
     currentClass = 10;
   } else {
     const calculatedClass = 10 - yearDiff + 1;
-    if (calculatedClass >= 6) {
+    if (calculatedClass >= 1 && calculatedClass <= 10) {
       currentClass = calculatedClass;
       status = 'studying';
       statusMessage = `Currently in Class ${currentClass}`;
@@ -269,6 +269,99 @@ function getRandomQuote() {
       index: randomIndex
     };
   }
+}
+
+// ─── Complete Academic Milestones (Class 1 to SSC Exam) ─────
+
+const ACADEMIC_MILESTONES = [
+  { id: 1, name: 'Class 1', shortName: 'Cl 1', grade: 1, phase: 'Primary', phaseKey: 'primary' },
+  { id: 2, name: 'Class 2', shortName: 'Cl 2', grade: 2, phase: 'Primary', phaseKey: 'primary' },
+  { id: 3, name: 'Class 3', shortName: 'Cl 3', grade: 3, phase: 'Primary', phaseKey: 'primary' },
+  { id: 4, name: 'Class 4', shortName: 'Cl 4', grade: 4, phase: 'Primary', phaseKey: 'primary' },
+  { id: 5, name: 'Class 5', shortName: 'Cl 5', grade: 5, phase: 'Primary', phaseKey: 'primary' },
+  { id: 6, name: 'Class 6', shortName: 'Cl 6', grade: 6, phase: 'Junior Secondary', phaseKey: 'middle' },
+  { id: 7, name: 'Class 7', shortName: 'Cl 7', grade: 7, phase: 'Junior Secondary', phaseKey: 'middle' },
+  { id: 8, name: 'Class 8', shortName: 'Cl 8', grade: 8, phase: 'Junior Secondary', phaseKey: 'middle' },
+  { id: 9, name: 'Class 9', shortName: 'Cl 9', grade: 9, phase: 'Secondary', phaseKey: 'secondary' },
+  { id: 10, name: 'Class 10', shortName: 'Cl 10', grade: 10, phase: 'Secondary', phaseKey: 'secondary' },
+  { id: 11, name: 'SSC Exam', shortName: 'SSC', grade: 11, phase: 'Board Exam', phaseKey: 'exam', isExam: true }
+];
+
+/**
+ * Determine dynamic state of an academic milestone relative to the student status.
+ * @param {Object} milestone
+ * @param {Object} data - Student status from calculateStudentStatus
+ * @returns {{ state: string, badgeText: string, iconText: string, label: string }}
+ */
+function getMilestoneState(milestone, data) {
+  const { status, currentClass } = data;
+
+  if (status === 'finished') {
+    return {
+      state: 'completed',
+      badgeText: milestone.isExam ? '★ Exam Finished' : '✓ Completed',
+      iconText: milestone.isExam ? '★' : '✓',
+      label: milestone.isExam ? 'SSC Exam Completed' : `${milestone.name} Completed`
+    };
+  }
+
+  if (status === 'candidate') {
+    if (milestone.isExam) {
+      return {
+        state: 'current',
+        badgeText: '★ Exam Candidate',
+        iconText: '★',
+        label: 'SSC Examination Period'
+      };
+    }
+    return {
+      state: 'completed',
+      badgeText: '✓ Completed',
+      iconText: '✓',
+      label: `${milestone.name} Completed`
+    };
+  }
+
+  if (status === 'studying' && currentClass) {
+    if (milestone.isExam) {
+      return {
+        state: 'upcoming',
+        badgeText: '★ Final Goal',
+        iconText: '★',
+        label: 'Final Goal: SSC Examination'
+      };
+    }
+    if (milestone.grade < currentClass) {
+      return {
+        state: 'completed',
+        badgeText: '✓ Completed',
+        iconText: '✓',
+        label: `${milestone.name} Completed`
+      };
+    }
+    if (milestone.grade === currentClass) {
+      return {
+        state: 'current',
+        badgeText: '● CURRENT',
+        iconText: '●',
+        label: `${milestone.name} (Current Class)`
+      };
+    }
+    return {
+      state: 'upcoming',
+      badgeText: '○ Upcoming',
+      iconText: '○',
+      label: `${milestone.name} (Upcoming)`
+    };
+  }
+
+  // status === 'future' (Pre-school / before Class 1)
+  return {
+    state: 'upcoming',
+    badgeText: milestone.isExam ? '★ Final Goal' : '○ Upcoming',
+    iconText: milestone.isExam ? '★' : '○',
+    label: `${milestone.name} (Upcoming)`
+  };
 }
 
 // ─── UI Controller & Event Handlers ─────────────────────────
@@ -418,14 +511,81 @@ function getRandomQuote() {
     }
   }
 
-  function getProgressMessage(status, progress) {
-    if (status === 'finished') return 'Academic milestone achieved — SSC examination completed!';
-    if (status === 'future') return 'Your secondary school journey will begin soon. Stay prepared!';
-    if (progress >= 90) return 'Final lap! You are in the home stretch for your SSC examination.';
+  function getProgressMessage(status, progress, currentClass) {
+    if (status === 'finished') return 'Academic milestone achieved! Congratulations on completing your complete 10-year Class 1 → SSC examination journey.';
+    if (status === 'candidate') return 'Final lap! You are in the examination period of your 10-year secondary academic journey.';
+    if (status === 'future') return 'Your 10-year academic journey from Class 1 to SSC will begin soon. Stay prepared!';
+    if (currentClass) {
+      if (currentClass === 10) return 'Class 10 — The final stretch! Consolidating 10 years of learning for the board examination.';
+      if (currentClass === 9) return 'Class 9 — Entering senior secondary. Laying the crucial core foundation for the SSC examination.';
+      if (currentClass >= 6) return `Class ${currentClass} — Junior secondary milestones are advancing steadily toward SSC.`;
+      return `Class ${currentClass} — Building core educational fundamentals on your pathway to SSC.`;
+    }
+    if (progress >= 90) return 'Final lap! You are in the home stretch of your complete academic pathway.';
     if (progress >= 70) return 'Great momentum! High school milestones are steadily advancing.';
-    if (progress >= 50) return 'Halfway point reached! Consistent daily study builds success.';
-    if (progress >= 25) return 'Building core fundamentals. Every chapter mastered counts.';
-    return 'The beginning of your secondary academic journey!';
+    if (progress >= 50) return 'Over halfway through your Class 1 → SSC educational journey!';
+    return 'Continuing your foundational academic journey toward the SSC examination.';
+  }
+
+  function renderJourneyLadderHtml(data) {
+    const phases = [
+      {
+        id: 'primary',
+        title: 'Primary Education',
+        classes: 'Classes 1 – 5',
+        milestones: ACADEMIC_MILESTONES.filter(m => m.phaseKey === 'primary')
+      },
+      {
+        id: 'middle',
+        title: 'Junior Secondary',
+        classes: 'Classes 6 – 8',
+        milestones: ACADEMIC_MILESTONES.filter(m => m.phaseKey === 'middle')
+      },
+      {
+        id: 'secondary',
+        title: 'Secondary & Board Exam',
+        classes: 'Classes 9, 10 & SSC',
+        milestones: ACADEMIC_MILESTONES.filter(m => m.phaseKey === 'secondary' || m.phaseKey === 'exam')
+      }
+    ];
+
+    return `
+      <div class="journey-phases-container">
+        ${phases.map(p => `
+          <div class="journey-phase-group">
+            <div class="phase-group-header">
+              <span class="phase-badge">${p.title}</span>
+              <span class="phase-sub">${p.classes}</span>
+            </div>
+            <div class="milestones-grid phase-${p.id}">
+              ${p.milestones.map(m => {
+                const mState = getMilestoneState(m, data);
+                const isCurrent = mState.state === 'current';
+                const isExam = !!m.isExam;
+
+                return `
+                  <div class="milestone-card ${mState.state} ${isExam ? 'milestone-exam' : ''}" 
+                       data-grade="${m.grade}"
+                       title="${mState.label}">
+                    <div class="milestone-status-indicator" aria-hidden="true">
+                      <span class="indicator-glyph">${mState.iconText}</span>
+                      ${isCurrent ? '<span class="current-pulse-ring"></span>' : ''}
+                    </div>
+                    <div class="milestone-content">
+                      <div class="milestone-title-row">
+                        <span class="milestone-name">${m.name}</span>
+                        ${isExam ? '<span class="exam-star" aria-hidden="true">★</span>' : ''}
+                      </div>
+                      <span class="milestone-state-badge ${mState.state}">${mState.badgeText}</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
   function renderDashboard(batchYear) {
@@ -462,14 +622,6 @@ function getRandomQuote() {
     else if (data.status === 'candidate') statusTagLabel = 'SSC Candidate Year';
     else if (data.status === 'finished') statusTagLabel = 'Examination Completed';
     else statusTagLabel = 'Future Academic Batch';
-
-    // Milestone calculation for progress bar
-    const milestones = [
-      { label: 'Class 6', pct: 0 },
-      { label: 'Class 8', pct: 40 },
-      { label: 'Class 10', pct: 80 },
-      { label: 'SSC Exam', pct: 100 }
-    ];
 
     const quote = getRandomQuote();
 
@@ -584,11 +736,14 @@ function getRandomQuote() {
       </div>
 
       <!-- Academic Progress Section -->
-      <section class="progress-section" aria-label="Academic progress toward SSC">
+      <section class="progress-section" aria-label="Academic progress from Class 1 toward SSC">
         <div class="progress-header">
           <div class="progress-title-wrap">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="progress-icon" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
-            <span class="progress-title">Academic Journey</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="progress-icon" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path></svg>
+            <div class="progress-title-group">
+              <span class="progress-title">Academic Journey</span>
+              <span class="progress-subtitle">Complete 10-Year Educational Pathway (Class 1 → SSC Exam)</span>
+            </div>
           </div>
           <div class="progress-value-badge">
             <span id="progress-value-text">${data.progress}%</span>
@@ -596,26 +751,40 @@ function getRandomQuote() {
         </div>
 
         <div class="progress-track-wrapper">
-          <div class="progress-bar-track" role="progressbar" aria-valuenow="${data.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Academic progress: ${data.progress}%">
+          <div class="progress-track-endpoints">
+            <div class="endpoint start">
+              <span class="endpoint-dot" aria-hidden="true"></span>
+              <span class="endpoint-label">Class 1 Start</span>
+            </div>
+            <div class="endpoint-middle-status">
+              <span class="status-summary-pill">
+                ${data.status === 'finished' 
+                  ? 'All 10 Academic Levels & SSC Exam Completed' 
+                  : (data.currentClass ? `Currently in Class ${data.currentClass}` : data.statusMessage)}
+              </span>
+            </div>
+            <div class="endpoint end">
+              <span class="endpoint-star" aria-hidden="true">★</span>
+              <span class="endpoint-label">SSC Examination</span>
+            </div>
+          </div>
+
+          <div class="progress-bar-track" role="progressbar" aria-valuenow="${data.progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Academic progress from Class 1 to SSC: ${data.progress}%">
             <div class="progress-bar-fill" id="progress-bar-fill" style="width: ${Math.max(data.progress, 1.5)}%;">
               <div class="progress-shimmer" aria-hidden="true"></div>
               <div class="progress-pin" aria-hidden="true"></div>
             </div>
           </div>
+        </div>
 
-          <div class="milestones-row" aria-hidden="true">
-            ${milestones.map(m => `
-              <div class="milestone-node ${data.progress >= m.pct ? 'passed' : ''}" style="left: ${m.pct}%;">
-                <div class="milestone-dot"></div>
-                <span class="milestone-label">${m.label}</span>
-              </div>
-            `).join('')}
-          </div>
+        <!-- 11-Milestone Educational Pathway Ladder -->
+        <div class="academic-journey-ladder" aria-label="Academic milestones from Class 1 to SSC Examination">
+          ${renderJourneyLadderHtml(data)}
         </div>
 
         <div class="progress-message-card">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="message-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-          <span class="progress-message" id="progress-message-text">${getProgressMessage(data.status, data.progress)}</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="message-icon" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+          <span class="progress-message" id="progress-message-text">${getProgressMessage(data.status, data.progress, data.currentClass)}</span>
         </div>
       </section>
 
@@ -762,6 +931,8 @@ function getRandomQuote() {
       formatCountdown,
       getBangladeshNow,
       getAvailableBatches,
+      ACADEMIC_MILESTONES,
+      getMilestoneState,
       MOTIVATIONAL_QUOTES
     };
   }
@@ -777,6 +948,8 @@ if (typeof module !== 'undefined' && module.exports) {
     formatCountdown,
     getBangladeshNow,
     getAvailableBatches,
+    ACADEMIC_MILESTONES,
+    getMilestoneState,
     MOTIVATIONAL_QUOTES,
     EXAM_MONTH,
     EXAM_DAY,
